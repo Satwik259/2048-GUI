@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2048 — Clear Names & Minimal Functional JS</title>
+    <style>
+        :root {
+            --bg: #faf8ef;
+            --grid: #bbada0;
+            --cell: #cdc1b4;
+            --text: #776e65;
+            --t2: #eee4da;
+            --t4: #ede0c8;
+            --t8: #f2b179;
+            --t16: #f59563;
+            --t32: #f67c5f;
+            --t64: #f65e3b;
+            --t128: #edcf72;
+            --t256: #edcc61;
+            --t512: #edc850;
+            --t1024: #edc53f;
+            --t2048: #edc22e;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            display: grid;
+            place-items: center;
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        .wrap {
+            width: min(94vw, 520px)
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(28px, 5vw, 40px)
+        }
+
+        .badges {
+            display: flex;
+            gap: 8px
+        }
+
+        .badge {
+            background: #bbada0;
+            color: #fff;
+            border-radius: 10px;
+            padding: 8px 12px;
+            min-width: 92px;
+            text-align: center;
+        }
+
+        .badge .label {
+            font-size: 12px;
+            opacity: .85
+        }
+
+        .badge .value {
+            font-weight: 800;
+            font-size: 20px
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0 12px
+        }
+
+        select,
+        button {
+            border: 0;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-weight: 600;
+            background: #8f7a66;
+            color: #fff;
+        }
+
+        select {
+            background: #a39489
+        }
+
+        .hint {
+            font-size: 13px;
+            opacity: .9;
+            margin: 6px 0 10px
+        }
+
+        .board {
+            position: relative;
+            background: var(--grid);
+            border-radius: 12px;
+            padding: 12px;
+            display: grid;
+            gap: 12px;
+            aspect-ratio: 1/1;
+        }
+
+        .cell {
+            background: var(--cell);
+            border-radius: 8px
+        }
+
+        .tile {
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            font-weight: 800;
+            color: var(--text);
+            font-size: clamp(18px, 6vw, 34px);
+        }
+
+        .v2 {
+            background: var(--t2)
+        }
+
+        .v4 {
+            background: var(--t4)
+        }
+
+        .v8 {
+            background: var(--t8);
+            color: #f9f6f2
+        }
+
+        .v16 {
+            background: var(--t16);
+            color: #f9f6f2
+        }
+
+        .v32 {
+            background: var(--t32);
+            color: #f9f6f2
+        }
+
+        .v64 {
+            background: var(--t64);
+            color: #f9f6f2
+        }
+
+        .v128,
+        .v256,
+        .v512 {
+            color: #f9f6f2;
+            font-size: clamp(16px, 4.2vw, 26px)
+        }
+
+        .v128 {
+            background: var(--t128)
+        }
+
+        .v256 {
+            background: var(--t256)
+        }
+
+        .v512 {
+            background: var(--t512)
+        }
+
+        .v1024,
+        .v2048 {
+            color: #f9f6f2;
+            font-size: clamp(14px, 3.8vw, 22px)
+        }
+
+        .v1024 {
+            background: var(--t1024)
+        }
+
+        .v2048 {
+            background: var(--t2048)
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            background: rgba(250, 248, 239, .8);
+            border-radius: 12px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .15s ease;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            pointer-events: auto
+        }
+
+        .card {
+            background: #fff;
+            color: var(--text);
+            padding: 16px 18px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .08);
+            text-align: center;
+        }
+
+        .arrows {
+            display: grid;
+            grid-template-columns: repeat(3, 56px);
+            grid-template-rows: repeat(3, 40px);
+            gap: 6px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .arrows button {
+            background: #a39489
+        }
+
+        .blank {
+            visibility: hidden
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap" aria-live="polite">
+        <header>
+            <h1>2048</h1>
+            <div class="badges">
+                <div class="badge">
+                    <div class="label">SCORE</div>
+                    <div id="scoreDisplay" class="value">0</div>
+                </div>
+                <div class="badge">
+                    <div class="label">BEST</div>
+                    <div id="bestScoreDisplay" class="value">0</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="controls">
+            <button id="restartButton" title="Restart (R)">Restart</button>
+            <label style="display:flex;align-items:center;gap:6px">Size
+                <select id="sizeSelect">
+                    <option>3</option>
+                    <option selected>4</option>
+                    <option>5</option>
+                    <option>6</option>
+                </select>
+            </label>
+        </div>
+
+        <p class="hint">Use Arrow Keys or WASD. You can also use the on-screen arrows.</p>
+
+        <div id="board" class="board" role="application" aria-label="2048 game board"></div>
+        <div id="statusOverlay" class="overlay" aria-hidden="true">
+            <div class="card">
+                <div id="statusMessage">Game Over</div>
+                <div style="margin-top:10px"><button id="playAgainButton">Play Again</button></div>
+            </div>
+        </div>
+
+        <div class="arrows" aria-hidden="false" aria-label="On-screen controls">
+            <span class="blank"></span>
+            <button data-dir="up">▲</button>
+            <span class="blank"></span>
+            <button data-dir="left">◀</button>
+            <button data-dir="down">▼</button>
+            <button data-dir="right">▶</button>
+        </div>
+    </div>
+
+    <script>
+        const WIN_TILE = 2048;
+        const PROBABILITY_OF_4 = 0.1;
+        const STORAGE_KEY_BEST_SCORE = "m2048-best";
+
+        const createEmptyGrid = (n) => Array.from({ length: n }, () => Array(n).fill(0));
+        const cloneGrid = (grid) => grid.map((row) => row.slice());
+
+        const getEmptyCells = (grid) => {
+            const n = grid.length, acc = [];
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    if (grid[r][c] === 0) acc.push([r, c]);
+                }
+            }
+            return acc;
+        };
+
+        const spawnRandomTile = (game, rng = Math.random) => {
+            const grid = cloneGrid(game.grid);
+            const empty = getEmptyCells(grid);
+            if (!empty.length) return game;
+            const [r, c] = empty[Math.floor(rng() * empty.length)];
+            grid[r][c] = rng() < PROBABILITY_OF_4 ? 4 : 2;
+            return { ...game, grid };
+        };
+
+        const compressAndMergeRowLeft = (row) => {
+            const compaction = row.filter((v) => v !== 0);
+            const out = [];
+            let gained = 0;
+            for (let i = 0; i < compaction.length; i++) {
+                if (i < compaction.length - 1 && compaction[i] === compaction[i + 1]) {
+                    const v = compaction[i] * 2;
+                    out.push(v);
+                    gained += v;
+                    i++;
+                } else {
+                    out.push(compaction[i]);
+                }
+            }
+            while (out.length < row.length) out.push(0);
+            return { row: out, gained };
+        };
+
+        const flipHorizontally = (grid) => grid.map((r) => r.slice().reverse());
+        const rotateLeft = (grid) => {
+            const n = grid.length, out = createEmptyGrid(n);
+            for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) out[n - 1 - c][r] = grid[r][c];
+            return out;
+        };
+        const rotateRight = (grid) => rotateLeft(rotateLeft(rotateLeft(grid)));
+
+        const evaluateGameStatus = (grid) => {
+            if (grid.some((row) => row.some((v) => v >= WIN_TILE))) return "won";
+            const n = grid.length;
+            if (getEmptyCells(grid).length) return "playing";
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    const v = grid[r][c];
+                    if (r + 1 < n && grid[r + 1][c] === v) return "playing";
+                    if (c + 1 < n && grid[r][c + 1] === v) return "playing";
+                }
+            }
+            return "over";
+        };
+
+        const createInitialState = (size = 4) => {
+            let g = { grid: createEmptyGrid(size), score: 0, status: "playing" };
+            g = spawnRandomTile(g);
+            g = spawnRandomTile(g);
+            return g;
+        };
+
+        const moveLeft = (game) => {
+            let anyChange = false, gained = 0;
+            const nextGrid = game.grid.map((row) => {
+                const { row: merged, gained: g } = compressAndMergeRowLeft(row);
+                if (!anyChange && merged.some((v, i) => v !== row[i])) anyChange = true;
+                gained += g;
+                return merged;
+            });
+            if (!anyChange) return game;
+            const afterMove = { ...game, grid: nextGrid, score: game.score + gained };
+            const withSpawn = spawnRandomTile(afterMove);
+            return { ...withSpawn, status: evaluateGameStatus(withSpawn.grid) };
+        };
+
+        const moveInDirection = (game, dir) => {
+            if (game.status !== "playing") return game;
+            let orient, unorient;
+            switch (dir) {
+                case "left": orient = (g) => g; unorient = (g) => g; break;
+                case "right": orient = flipHorizontally; unorient = flipHorizontally; break;
+                case "up": orient = rotateLeft; unorient = rotateRight; break;
+                case "down": orient = rotateRight; unorient = rotateLeft; break;
+                default: return game;
+            }
+            const oriented = { ...game, grid: orient(game.grid) };
+            const moved = moveLeft(oriented);
+            return moved === oriented ? game : { ...moved, grid: unorient(moved.grid) };
+        };
+
+        const board = document.getElementById("board");
+        const scoreDisplay = document.getElementById("scoreDisplay");
+        const bestScoreDisplay = document.getElementById("bestScoreDisplay");
+        const statusOverlay = document.getElementById("statusOverlay");
+        const statusMessage = document.getElementById("statusMessage");
+        const sizeSelect = document.getElementById("sizeSelect");
+        const restartButton = document.getElementById("restartButton");
+        const playAgainButton = document.getElementById("playAgainButton");
+        const arrowButtons = document.querySelectorAll("[data-dir]");
+
+        let game = createInitialState(Number(sizeSelect.value));
+        let bestScore = Number(localStorage.getItem(STORAGE_KEY_BEST_SCORE) || 0);
+
+        const setBoardGridTemplate = (n) => {
+            board.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+            board.style.gridTemplateRows = `repeat(${n}, 1fr)`;
+        };
+
+        const renderGame = () => {
+            const n = game.grid.length;
+            setBoardGridTemplate(n);
+            board.innerHTML = "";
+
+            for (let i = 0; i < n * n; i++) {
+                const bg = document.createElement("div");
+                bg.className = "cell";
+                board.appendChild(bg);
+            }
+
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    const v = game.grid[r][c];
+                    if (!v) continue;
+                    const tile = document.createElement("div");
+                    tile.className = `tile v${v}`;
+                    tile.textContent = v;
+                    tile.style.gridColumn = (c + 1);
+                    tile.style.gridRow = (r + 1);
+                    board.appendChild(tile);
+                }
+            }
+
+            scoreDisplay.textContent = game.score;
+            if (game.score > bestScore) {
+                bestScore = game.score;
+                localStorage.setItem(STORAGE_KEY_BEST_SCORE, String(bestScore));
+            }
+            bestScoreDisplay.textContent = bestScore;
+
+            if (game.status !== "playing") {
+                statusOverlay.classList.add("show");
+                statusOverlay.setAttribute("aria-hidden", "false");
+                statusMessage.textContent = game.status === "won" ? "You reached 2048! 🎉" : "Game Over";
+            } else {
+                statusOverlay.classList.remove("show");
+                statusOverlay.setAttribute("aria-hidden", "true");
+            }
+        };
+
+        const restartGame = (size) => { game = createInitialState(size); renderGame(); };
+
+        const handleMove = (dir) => {
+            const before = JSON.stringify(game.grid);
+            game = moveInDirection(game, dir);
+            const after = JSON.stringify(game.grid);
+            if (before !== after) renderGame();
+        };
+
+        window.addEventListener("keydown", (e) => {
+            const k = e.key.toLowerCase();
+            if (k === "arrowleft" || k === "a") handleMove("left");
+            else if (k === "arrowright" || k === "d") handleMove("right");
+            else if (k === "arrowup" || k === "w") handleMove("up");
+            else if (k === "arrowdown" || k === "s") handleMove("down");
+            else if (k === "r") restartGame(Number(sizeSelect.value));
+        });
+
+        arrowButtons.forEach((btn) => btn.addEventListener("click", () => handleMove(btn.dataset.dir)));
+        restartButton.addEventListener("click", () => restartGame(Number(sizeSelect.value)));
+        playAgainButton.addEventListener("click", () => restartGame(Number(sizeSelect.value)));
+        sizeSelect.addEventListener("change", () => restartGame(Number(sizeSelect.value)));
+
+        renderGame();
+    </script>
+</body>
+
+</html>
